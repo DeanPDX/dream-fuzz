@@ -269,7 +269,7 @@ int main (int argc, char* argv[])
             if (found.size() == 1)
             {
                 juce::AudioPluginFormatManager fm;
-                fm.addFormat (new juce::VST3PluginFormat());
+                fm.addFormat (std::make_unique<juce::VST3PluginFormat>());
 
                 juce::String error;
                 auto instance = fm.createPluginInstance (*found[0], fs, blockSize, error);

@@ -16,6 +16,9 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(JUCE)
 
+# MSVC C2327/C2065 workaround for juce_UMPDispatcher.h (see the script for details)
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/PatchJUCE.cmake)
+
 juce_add_binary_data(DreamFuzzAssets
     SOURCES Assets/background.png)
 
