@@ -38,8 +38,13 @@ Fuzz Face family sound alive, rather than just waveshaping:
 
 ## Building
 
-Requires CMake ≥ 3.22 and Xcode command-line tools (JUCE 8 is fetched
-automatically on first configure).
+Requires CMake ≥ 3.22 and Xcode command-line tools on macOS, or Visual
+Studio 2022 on Windows (JUCE 8 is fetched automatically on first configure).
+
+Note for Windows: configure applies a small workaround
+(`cmake/PatchJUCE.cmake`) for an MSVC name-lookup bug (C2327/C2065) in
+JUCE 8.0.14's `juce_UMPDispatcher.h`; without it some VS 2022 toolsets fail
+to compile `juce_audio_devices`.
 
 ```sh
 cmake -B build -DCMAKE_BUILD_TYPE=Release
