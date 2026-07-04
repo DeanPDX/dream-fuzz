@@ -61,6 +61,20 @@ target_link_libraries(DreamFuzz
         juce::juce_recommended_lto_flags
         juce::juce_recommended_warning_flags)
 
+# ---- Offline renderer: run a WAV through the processor headlessly ----
+juce_add_console_app(DreamFuzzRender PRODUCT_NAME "DreamFuzzRender")
+
+target_sources(DreamFuzzRender PRIVATE
+    Tools/OfflineRender.cpp
+    Source/PluginProcessor.cpp
+    Source/PluginEditor.cpp)
+
+target_include_directories(DreamFuzzRender PRIVATE Source)
+target_compile_definitions(DreamFuzzRender PRIVATE ${DREAMFUZZ_DEFS})
+target_link_libraries(DreamFuzzRender
+    PRIVATE ${DREAMFUZZ_LIBS} juce::juce_audio_formats
+    PUBLIC juce::juce_recommended_config_flags)
+
 # ---- Offline test harness: audio verification + UI snapshot ----
 juce_add_console_app(DreamFuzzTests PRODUCT_NAME "DreamFuzzTests")
 

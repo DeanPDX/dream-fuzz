@@ -43,6 +43,10 @@ public:
 
     juce::AudioProcessorParameter* getBypassParameter() const override { return bypassParam; }
 
+    /** Replaces the DSP voicing constants. Offline tooling only (not
+        real-time safe): call before prepareToPlay(). */
+    void setTuning (const df::Tuning& t) noexcept { tuning = t; }
+
     //==========================================================================
     juce::AudioProcessorValueTreeState apvts;
 
@@ -60,6 +64,7 @@ private:
     juce::AudioParameterBool* bypassParam = nullptr;
 
     std::unique_ptr<juce::dsp::Oversampling<float>> oversampling;
+    df::Tuning    tuning;
     df::FuzzCore  core[2];
     df::BaseChain base[2];
 

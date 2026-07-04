@@ -34,6 +34,45 @@ inline float dbToLin (float dB) noexcept { return std::pow (10.0f, dB * 0.05f); 
 inline float lerp (float a, float b, float t) noexcept { return a + (b - a) * t; }
 
 //==============================================================================
+/** Every voicing constant of the model in one place.
+
+    The defaults are the shipped sound; they were fitted against the
+    reference recordings in reference/ (see reference/README.md). The offline
+    render tool (Tools/OfflineRender.cpp) can override any field from the
+    command line, which is how the fitting is done. */
+struct Tuning
+{
+    // --- FuzzCore: fuzz-knob endpoints (value at fuzz=0 .. value at fuzz=1)
+    float gainAMinDb  = 6.0f,     gainAMaxDb  = 19.0f;    // Q1 gain, dB
+    float gainBMinDb  = 12.0f,    gainBMaxDb  = 34.0f;    // Q2 gain, dB
+    float gainBShape  = 0.85f;                            // pow() curve for Q2
+    float fbAmtMin    = 0.085f,   fbAmtMax    = 0.020f;   // bias feedback amount
+    float sagAmtMin   = 0.05f,    sagAmtMax   = 0.40f;    // blocking distortion
+    float makeupMinDb = -13.0f,   makeupMaxDb = -10.5f;   // output makeup, dB
+    float miller1MaxHz = 10000.0f, miller1MinHz = 4500.0f; // Q1 Miller LP, Hz
+    float miller2MaxHz = 9000.0f,  miller2MinHz = 3200.0f; // Q2 Miller LP, Hz
+
+    // --- FuzzCore: static voicing
+    float kPos1 = 0.85f, kNeg1 = 0.45f;   // stage 1 clipping knees
+    float kPos2 = 0.70f, kNeg2 = 0.50f;   // stage 2 clipping knees
+    float bias1 = 0.06f, bias2 = 0.12f;   // static bias offsets
+    float coupleHz = 30.0f;               // interstage coupling HP
+    float fbHz = 120.0f;                  // bias-feedback lowpass
+    float sagAttMs = 3.0f, sagRelMs = 90.0f;
+
+    // --- BaseChain
+    float inputHPHz  = 20.0f;    // input coupling cap
+    float loadLPHz   = 4000.0f;  // guitar loading by the input impedance
+    float outputHPHz = 25.0f;    // output coupling cap
+    float tiltHz     = 800.0f;   // TONE pivot
+    float fizzHz     = 7800.0f;  // post "fizz" lowpass
+    float fizzQ      = 0.707f;
+
+    // --- TONE shelf gains at full tilt (tone = 10), dB
+    float tiltLowFullDb = -6.5f, tiltHighFullDb = 6.5f;
+};
+
+//==============================================================================
 /** Zero-delay-feedback (TPT) one-pole. Stable under fast cutoff modulation. */
 struct OnePole
 {
@@ -138,17 +177,18 @@ inline float satAsym (float v, float kPos, float kNeg) noexcept
 class FuzzCore
 {
 public:
-    void prepare (double osRate) noexcept
+    void prepare (double osRate, const Tuning& t) noexcept
     {
         fs = (float) osRate;
+        tuning = t;
 
         miller1.prepare (fs);
         miller2.prepare (fs);
         couple.prepare (fs);
-        couple.setCutoff (30.0f);
+        couple.setCutoff (tuning.coupleHz);
         fbFilter.prepare (fs);
-        fbFilter.setCutoff (120.0f);       // bias feedback is a low-frequency effect
-        sagEnv.prepare (fs, 3.0f, 90.0f);  // blocking-distortion time constants
+        fbFilter.setCutoff (tuning.fbHz);  // bias feedback is a low-frequency effect
+        sagEnv.prepare (fs, tuning.sagAttMs, tuning.sagRelMs);
 
         // ~8 ms parameter smoothing inside the core (runs at the OS rate)
         smooth = 1.0f - std::exp (-1.0f / (fs * 0.008f));
@@ -161,15 +201,16 @@ public:
     void setParams (float fuzz01) noexcept
     {
         const float f = std::clamp (fuzz01, 0.0f, 1.0f);
+        const Tuning& t = tuning;
 
-        tGainA  = dbToLin (lerp (6.0f, 19.0f, f));                      // Q1 gain
-        tGainB  = dbToLin (lerp (12.0f, 34.0f, std::pow (f, 0.85f)));   // Q2 gain
-        tFbAmt  = lerp (0.085f, 0.020f, f);   // more cleanup headroom at low fuzz
-        tSagAmt = lerp (0.05f, 0.40f, f * f); // gating/sputter grows with fuzz
-        tMakeup = dbToLin (lerp (-13.0f, -10.5f, f));
+        tGainA  = dbToLin (lerp (t.gainAMinDb, t.gainAMaxDb, f));                       // Q1 gain
+        tGainB  = dbToLin (lerp (t.gainBMinDb, t.gainBMaxDb, std::pow (f, t.gainBShape))); // Q2 gain
+        tFbAmt  = lerp (t.fbAmtMin, t.fbAmtMax, f);     // more cleanup headroom at low fuzz
+        tSagAmt = lerp (t.sagAmtMin, t.sagAmtMax, f * f); // gating/sputter grows with fuzz
+        tMakeup = dbToLin (lerp (t.makeupMinDb, t.makeupMaxDb, f));
 
-        miller1.setCutoff (lerp (10000.0f, 4500.0f, f));
-        miller2.setCutoff (lerp (9000.0f, 3200.0f, f));
+        miller1.setCutoff (lerp (t.miller1MaxHz, t.miller1MinHz, f));
+        miller2.setCutoff (lerp (t.miller2MaxHz, t.miller2MinHz, f));
     }
 
     void reset() noexcept
@@ -199,8 +240,8 @@ public:
         // Bias feedback from stage 2 output opposes the input (y2 is inverted
         // w.r.t. x, so '+' here is negative feedback): this is the touch-
         // sensitive compression / volume-knob cleanup of the real circuit.
-        const float in1 = gainA * (x + fb * fbAmt) + 0.06f;
-        float y1 = satAsym (in1, 0.85f, 0.45f);
+        const float in1 = gainA * (x + fb * fbAmt) + tuning.bias1;
+        float y1 = satAsym (in1, tuning.kPos1, tuning.kNeg1);
         y1 = miller1.processLP (y1);
         y1 = couple.processHP (y1);
 
@@ -208,8 +249,8 @@ public:
         // Static bias offset for idle asymmetry, plus a dynamic shift driven
         // by the output envelope: sustained drive pushes the stage toward
         // cutoff -> duty-cycle modulation, sputter and gated decay.
-        const float bias2 = 0.12f - sagAmt * sagEnv.env;
-        float y2 = satAsym (-gainB * y1 + bias2, 0.70f, 0.50f);
+        const float bias2 = tuning.bias2 - sagAmt * sagEnv.env;
+        float y2 = satAsym (-gainB * y1 + bias2, tuning.kPos2, tuning.kNeg2);
         y2 = miller2.processLP (y2);
 
         sagEnv.process (y2);
@@ -220,6 +261,7 @@ public:
 
 private:
     float fs = 44100.0f, smooth = 0.01f;
+    Tuning tuning;
 
     OnePole miller1, miller2, couple, fbFilter;
     EnvFollower sagEnv;
@@ -235,18 +277,18 @@ private:
 class BaseChain
 {
 public:
-    void prepare (float fs) noexcept
+    void prepare (float fs, const Tuning& t) noexcept
     {
         inputHP.prepare (fs);
-        inputHP.setCutoff (20.0f);      // input coupling cap
+        inputHP.setCutoff (t.inputHPHz);   // input coupling cap
         loadLP.prepare (fs);
-        loadLP.setCutoff (4000.0f);     // guitar loading by the low input impedance
+        loadLP.setCutoff (t.loadLPHz);     // guitar loading by the low input impedance
         outputHP.prepare (fs);
-        outputHP.setCutoff (25.0f);     // output coupling cap
+        outputHP.setCutoff (t.outputHPHz); // output coupling cap
         tiltXover.prepare (fs);
-        tiltXover.setCutoff (800.0f);   // TONE pivot
+        tiltXover.setCutoff (t.tiltHz);    // TONE pivot
         fizzLP.prepare (fs);
-        fizzLP.setLowpass (7800.0f, 0.707f);
+        fizzLP.setLowpass (t.fizzHz, t.fizzQ);
         reset();
     }
 

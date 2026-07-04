@@ -78,8 +78,8 @@ void DreamFuzzProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 
     for (int ch = 0; ch < 2; ++ch)
     {
-        core[ch].prepare (osRate);
-        base[ch].prepare ((float) sampleRate);
+        core[ch].prepare (osRate, tuning);
+        base[ch].prepare ((float) sampleRate, tuning);
     }
 
     const int latency = (int) oversampling->getLatencyInSamples();
@@ -117,8 +117,8 @@ void DreamFuzzProcessor::reset()
 
     const float tone01 = toneParamValue->load() * 0.1f;
     const float tilt   = (tone01 - 0.5f) * 2.0f;
-    lowGainSmooth.setCurrentAndTargetValue (df::dbToLin (-6.5f * tilt));
-    highGainSmooth.setCurrentAndTargetValue (df::dbToLin (6.5f * tilt));
+    lowGainSmooth.setCurrentAndTargetValue (df::dbToLin (tuning.tiltLowFullDb * tilt));
+    highGainSmooth.setCurrentAndTargetValue (df::dbToLin (tuning.tiltHighFullDb * tilt));
     levelSmooth.setCurrentAndTargetValue (df::dbToLin (levelParamValue->load()));
     mixSmooth.setCurrentAndTargetValue (bypassParam->get() ? 0.0f : 1.0f);
 }
@@ -144,8 +144,8 @@ void DreamFuzzProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::M
     const float tone01 = toneParamValue->load() * 0.1f;
     const float tilt   = (tone01 - 0.5f) * 2.0f;   // -1 .. +1
 
-    lowGainSmooth.setTargetValue (df::dbToLin (-6.5f * tilt));
-    highGainSmooth.setTargetValue (df::dbToLin (6.5f * tilt));
+    lowGainSmooth.setTargetValue (df::dbToLin (tuning.tiltLowFullDb * tilt));
+    highGainSmooth.setTargetValue (df::dbToLin (tuning.tiltHighFullDb * tilt));
     levelSmooth.setTargetValue (df::dbToLin (levelParamValue->load()));
     mixSmooth.setTargetValue (bypassParam->get() ? 0.0f : 1.0f);
 
