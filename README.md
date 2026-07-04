@@ -10,7 +10,7 @@ Fuzz Face-family circuit — with an analog-modelled DSP core.
 
 | Control | Range | What it does |
 |---|---|---|
-| **TONE** | 0–10 | Tilt EQ pivoting at 800 Hz (dark ↔ bright), ±6.5 dB |
+| **TONE** | 0–10 | Treble shelf at ~4.3 kHz (dark ↔ bright), ±16 dB |
 | **LEVEL** | −24…+12 dB | Output volume |
 | **FUZZ** | 0–10 | Gain of both transistor stages, plus bias/sag intensity |
 | **Footswitch** | on/bypass | Click-free, latency-matched bypass (LED shows state) |
@@ -24,7 +24,8 @@ Fuzz Face family sound alive, rather than just waveshaping:
   softer algebraic curve on the cutoff side (germanium-style knees), with
   opposite polarity per stage for strong even-harmonic content.
 - **Low-frequency bias feedback** (stage 2 → stage 1) — the mechanism behind
-  the famous touch-sensitive compression and volume-knob cleanup.
+  the famous touch-sensitive compression and volume-knob cleanup. (The
+  reference fit below drives this to ~0; re-enable via `Tuning::fbAmtMin/Max`.)
 - **Dynamic bias shift** ("blocking distortion") — sustained drive pushes
   stage 2 toward cutoff, giving duty-cycle modulation, sputter and the
   gated decay at high fuzz settings.
@@ -35,6 +36,28 @@ Fuzz Face family sound alive, rather than just waveshaping:
 - **8× oversampling** (4× at 88.2 kHz+) around the nonlinear core, so the
   fuzz spectrum stays alias-free. Latency is reported to the host, and the
   bypass dry path is delay-matched so toggling never clicks or smears.
+
+## Reference-matched voicing
+
+Every voicing constant of the model lives in `df::Tuning`
+(`Source/FuzzDSP.h`). The current defaults were fitted against the
+recordings in `reference/`: the dry DI track is rendered through the real
+processor offline and compared to the reference-fuzz tracks — banded
+spectrum shape, loudness, frame-envelope dynamics and crest factor, at
+both documented knob settings — and CMA-ES minimizes the combined error
+(`Tools/tune_voicing.py`). The fit brought the combined error from 40.1 dB
+to 4.9 dB; spectral shape now matches the reference within ~1 dB RMSE at
+both settings.
+
+`Tools/OfflineRender.cpp` (target `DreamFuzzRender`) renders a WAV through
+the processor and accepts `name=value` overrides for every `df::Tuning`
+field (run with `-list` to see them), so refitting after adding new
+reference tracks needs no recompiles:
+
+```sh
+./build/DreamFuzzRender_artefacts/Release/DreamFuzzRender in.wav out.wav \
+    <tone 0-10> <level dB> <fuzz 0-10> [gainBMaxDb=40 fizzHz=9000 ...]
+```
 
 ## Building
 

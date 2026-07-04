@@ -43,33 +43,33 @@ inline float lerp (float a, float b, float t) noexcept { return a + (b - a) * t;
 struct Tuning
 {
     // --- FuzzCore: fuzz-knob endpoints (value at fuzz=0 .. value at fuzz=1)
-    float gainAMinDb  = 6.0f,     gainAMaxDb  = 19.0f;    // Q1 gain, dB
-    float gainBMinDb  = 12.0f,    gainBMaxDb  = 34.0f;    // Q2 gain, dB
+    float gainAMinDb  = 5.8f,     gainAMaxDb  = 29.3f;    // Q1 gain, dB
+    float gainBMinDb  = 15.8f,    gainBMaxDb  = 44.1f;    // Q2 gain, dB
     float gainBShape  = 0.85f;                            // pow() curve for Q2
-    float fbAmtMin    = 0.085f,   fbAmtMax    = 0.020f;   // bias feedback amount
-    float sagAmtMin   = 0.05f,    sagAmtMax   = 0.40f;    // blocking distortion
-    float makeupMinDb = -13.0f,   makeupMaxDb = -10.5f;   // output makeup, dB
-    float miller1MaxHz = 10000.0f, miller1MinHz = 4500.0f; // Q1 Miller LP, Hz
-    float miller2MaxHz = 9000.0f,  miller2MinHz = 3200.0f; // Q2 Miller LP, Hz
+    float fbAmtMin    = 0.0007f,  fbAmtMax    = 0.0f;     // bias feedback amount
+    float sagAmtMin   = 0.005f,   sagAmtMax   = 0.61f;    // blocking distortion
+    float makeupMinDb = -10.0f,   makeupMaxDb = -18.4f;   // output makeup, dB
+    float miller1MaxHz = 13250.0f, miller1MinHz = 7250.0f; // Q1 Miller LP, Hz
+    float miller2MaxHz = 9600.0f,  miller2MinHz = 7200.0f; // Q2 Miller LP, Hz
 
     // --- FuzzCore: static voicing
-    float kPos1 = 0.85f, kNeg1 = 0.45f;   // stage 1 clipping knees
-    float kPos2 = 0.70f, kNeg2 = 0.50f;   // stage 2 clipping knees
-    float bias1 = 0.06f, bias2 = 0.12f;   // static bias offsets
-    float coupleHz = 30.0f;               // interstage coupling HP
+    float kPos1 = 0.91f, kNeg1 = 0.76f;   // stage 1 clipping knees
+    float kPos2 = 0.48f, kNeg2 = 0.22f;   // stage 2 clipping knees
+    float bias1 = 0.005f, bias2 = 0.262f; // static bias offsets
+    float coupleHz = 12.5f;               // interstage coupling HP
     float fbHz = 120.0f;                  // bias-feedback lowpass
-    float sagAttMs = 3.0f, sagRelMs = 90.0f;
+    float sagAttMs = 3.0f, sagRelMs = 77.0f;
 
     // --- BaseChain
-    float inputHPHz  = 20.0f;    // input coupling cap
-    float loadLPHz   = 4000.0f;  // guitar loading by the input impedance
-    float outputHPHz = 25.0f;    // output coupling cap
-    float tiltHz     = 800.0f;   // TONE pivot
-    float fizzHz     = 7800.0f;  // post "fizz" lowpass
-    float fizzQ      = 0.707f;
+    float inputHPHz  = 10.5f;    // input coupling cap
+    float loadLPHz   = 7800.0f;  // guitar loading by the input impedance
+    float outputHPHz = 15.5f;    // output coupling cap
+    float tiltHz     = 4350.0f;  // TONE pivot
+    float fizzHz     = 15000.0f; // post "fizz" filter: resonant top-octave lift
+    float fizzQ      = 2.0f;
 
     // --- TONE shelf gains at full tilt (tone = 10), dB
-    float tiltLowFullDb = -6.5f, tiltHighFullDb = 6.5f;
+    float tiltLowFullDb = -0.5f, tiltHighFullDb = 15.9f;
 };
 
 //==============================================================================
